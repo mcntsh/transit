@@ -58,9 +58,11 @@
       request.send();
     },
     middleware: function(fn, params, callback) {
+      params = params || [];
+
       var nextFn = function() { this() };
 
-      params.push(nextFn.bind(callback) || utilities.noop);
+      params.push(nextFn.bind(callback || utilities.noop));
 
       fn.apply(null, params);
     }
@@ -104,6 +106,9 @@
 
   hist = {
     handlePopState: function(event) {
+      console.log(event);
+      if(!event.state) { return; }
+
       document.title = event.state.title;
 
       loadNewContent(null, document.location);
@@ -112,6 +117,8 @@
       document.title = title
     },
     push: function(title, path) {
+      console.log(title, path);
+
       history.pushState({ title : title }, title, path);
       hist.handlePushState(title);
     },
@@ -130,15 +137,13 @@
       next();
     },
     beforeAppend: function($newContent, $oldContent, next) {
-      console.log('do something before append...');
       next();
     },
     afterAppend: function($newContent, next) {
-      console.log($newContent);
       next();
     },
     done: function(url) {
-      transit();
+      // wuhuu!
     }
   };
 
@@ -188,13 +193,17 @@
 
       delete $newContent;
 
-      hist.push(cache.title, cache.url);
-
       utilities.middleware(options.afterAppend, [$context], updatePage);
     };
 
     updatePage = function() {
-      console.log('wühüü c:');
+      var $links  = dom.find(document, 'a', true);
+
+      hist.push(cache.title, cache.url);
+
+      dom.bind($links, 'click', loadNewContent);
+
+      utilities.middleware(options.done);
     };
 
     utilities.middleware(options.beforeAppend, [$newContent, $context], appendNewContent);
@@ -205,7 +214,7 @@
 
     window.onpopstate = hist.handlePopState;
 
-    hist.push(dom.find(document, 'title').innerText, document.location);
+    hist.push(dom.find(document, 'title').innerText, document.location.href);
 
     return true;
   };
