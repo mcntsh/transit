@@ -5,11 +5,16 @@
   var options;
   var defaults;
   var dom;
+  var hist;
+
+  var loadNewContent;
+  var extractContextFromContent;
+  var placeNewContent;
+  var initPushState;
 
   cache = {
     url   : null,
     title : null,
-    html  : null,
   };
 
   utilities = {
@@ -97,6 +102,21 @@
     },
   };
 
+  hist = {
+    handlePopState: function(event) {
+      document.title = event.state.title;
+
+      loadNewContent(null, document.location);
+    },
+    handlePushState: function(title) {
+      document.title = title
+    },
+    push: function(title, path) {
+      history.pushState({ title : title }, title, path);
+      hist.handlePushState(title);
+    },
+  };
+
   defaults = {
     anchors   : 'a',
     contextId : 'transit-context',
@@ -118,26 +138,30 @@
       next();
     },
     done: function(url) {
-      // woohoo!!
+      transit();
     }
   };
 
-  var loadNewContent = function(event) {
+  loadNewContent = function(event, link) {
     var $link    = this;
-    var linkHref = $link.href;
+    var linkHref = link || $link.href;
 
-    event.preventDefault();
+    if(event) {
+      event.preventDefault();
+    }
 
     if(utilities.isInternalLink($link.href)) {
       utilities.getRequest(linkHref, function(request) {
         var $newContent = extractContextFromContent(request.responseText);
+
+        cache.url = $link.href;
 
         placeNewContent($newContent);
       });
     }
   };
 
-  var extractContextFromContent = function(htmlString) {
+  extractContextFromContent = function(htmlString) {
     var $tempHTMLContainer;
     var $context;
 
@@ -147,12 +171,14 @@
     $context    = dom.find($tempHTMLContainer, '#' + options.contextId);
     $context.id = $context.id + '--temp';
 
+    cache.title = dom.find($tempHTMLContainer, 'title').innerText;
+
     delete $tempHTMLContainer;
 
     return $context;
   };
 
-  var placeNewContent = function($newContent) {
+  placeNewContent = function($newContent) {
     var $context = dom.find(document, '#' + options.contextId);
     var appendNewContent;
     var updatePage;
@@ -161,6 +187,8 @@
       $context.innerHTML = $newContent.innerHTML;
 
       delete $newContent;
+
+      hist.push(cache.title, cache.url);
 
       utilities.middleware(options.afterAppend, [$context], updatePage);
     };
@@ -172,9 +200,21 @@
     utilities.middleware(options.beforeAppend, [$newContent, $context], appendNewContent);
   };
 
+  initPushState = function() {
+    if(!history.pushState) { return false; }
+
+    window.onpopstate = hist.handlePopState;
+
+    hist.push(dom.find(document, 'title').innerText, document.location);
+
+    return true;
+  };
+
 
   function Transit(opts) {
     var $links;
+
+    if(!initPushState()) { return false; }
 
     opts    = opts || {};
     options = utilities.objectExtend(defaults, opts);
