@@ -27,7 +27,7 @@
     },
     isHash: function(url) {
       var hasPathname = (url.indexOf(window.location.pathname) > 0) ? true : false;
-      var hasHash     = (url.indexOf("#") > 0) ? true : false;
+      var hasHash     = (url.indexOf('#') > 0) ? true : false;
 
       return (hasPathname && hasHash) ? true : false;
     },
@@ -106,19 +106,17 @@
 
   hist = {
     handlePopState: function(event) {
-      console.log(event);
       if(!event.state) { return; }
 
       document.title = event.state.title;
 
-      loadNewContent(null, document.location);
+      loadNewContent(null, document.location.href);
     },
     handlePushState: function(title) {
       document.title = title
     },
     push: function(title, path) {
       console.log(title, path);
-
       history.pushState({ title : title }, title, path);
       hist.handlePushState(title);
     },
@@ -159,7 +157,7 @@
       utilities.getRequest(linkHref, function(request) {
         var $newContent = extractContextFromContent(request.responseText);
 
-        cache.url = $link.href;
+        cache.url = link || $link.href;
 
         placeNewContent($newContent);
       });

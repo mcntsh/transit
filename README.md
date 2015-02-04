@@ -1,7 +1,13 @@
 # Transit.js
 
-A simple drop-in library for providing a refresh-less browsing experience within a website using the [history.pushState](https://developer.mozilla.org/en-US/docs/Web/Guide/API/DOM/Manipulating_the_browser_history) API.
+A simple drop-in library for providing a refreshless browsing experience within a website using the [history.pushState](https://developer.mozilla.org/en-US/docs/Web/Guide/API/DOM/Manipulating_the_browser_history) API.
 
-**Very much a work-in-progress**
+## How does it work?
 
-The code is a mess and needs to be commented and documented.
+Transit automatically detects inbound links and attempts to load them into the current page context via AJAX. The *page context* is an element which contains the changing content of your site (usually the `<main>` tag).
+
+## Getting started
+
+```Javascript
+
+```
