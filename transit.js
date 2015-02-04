@@ -1,194 +1,186 @@
 ;(function(window) {
 
-  var
-    // Global module cache.
-    cache = {
-      url   : null,
-      title : null,
-      html  : null,
+  var cache;
+  var utilities;
+  var options;
+  var defaults;
+  var dom;
+
+  cache = {
+    url   : null,
+    title : null,
+    html  : null,
+  };
+
+  utilities = {
+    noop: function() {},
+    isInternalLink: function(url) {
+      var externalPattern = new RegExp('^(?:[a-z]+:)?//', 'i');
+      var internalPattern = new RegExp('//' + location.host + '($|/)', 'i');
+
+      return !(externalPattern.test(url) && !internalPattern.test(url));
     },
+    isHash: function(url) {
+      var hasPathname = (url.indexOf(window.location.pathname) > 0) ? true : false;
+      var hasHash     = (url.indexOf("#") > 0) ? true : false;
 
-    // Global module utility methods.
-    utilities = {
-      isInternalLink: function(url) {
-        var externalPattern = new RegExp('^(?:[a-z]+:)?//', 'i');
-        var internalPattern = new RegExp('//' + location.host + '($|/)', 'i');
+      return (hasPathname && hasHash) ? true : false;
+    },
+    objectExtend: function(obj1, obj2) {
+      var obj3 = {};
 
-        return !(externalPattern.test(url) && !internalPattern.test(url));
-      },
-      isHash: function(url) {
-        var hasPathname = (url.indexOf(window.location.pathname) > 0) ? true : false;
-        var hasHash     = (url.indexOf("#") > 0) ? true : false;
+      for(var attr in obj1) {
+        obj3[attr] = (obj2[attr]) ? obj2[attr] : obj1[attr];
+      }
 
-        return (hasPathname && hasHash) ? true : false;
-      },
-      objectExtend: function(obj1, obj2) {
-        var obj3 = {};
+      return obj3;
+    },
+    getRequest: function(url, successCB, errorCB, loadingCB) {
+      var responseObject = { success: false, content: null };
+      var request;
 
-        for(var attr in obj1) {
-          obj3[attr] = (obj2[attr]) ? obj2[attr] : obj1[attr];
+      request = new XMLHttpRequest();
+      request.open('GET', url, true);
+
+      request.addEventListener('progress', (loadingCB || utilities.noop), false);
+      request.onload  = function() {
+        if(request.status  >= 200 && request.status < 400) {
+          (successCB || utilities.noop).call(this, request);
         }
+      };
+      request.onerror = (errorCB || utilities.noop).bind(null, request);
 
-        return obj3;
-      },
-      bubbleElement: function($element, type) {
-
-      },
-      ajaxRequest: function(url, callback) {
-        var responseObject = { success: false, content: null };
-        var request;
-
-        if(!utilities.isInternalLink(url)) { return responseObject; }
-
-        request = new XMLHttpRequest();
-        request.open('GET', url, true);
-
-        request.onload = callback;
-
-        request.send();
-      },
+      request.send();
     },
+    middleware: function(fn, params, callback) {
+      var nextFn = function() { this() };
 
-    // Module default options
-    options = {},
-    defaults = {
-      anchors   : 'a',
-      contextId : '#transit-context',
-      beforeLoad: function(url, next) {
-        next();
-      },
-      afterLoad: function(url, content, next) {
-        next();
-      },
-      beforeAppend: function(loadedContent, existingContent, next) {
-        loadedContent.style.display = 'none';
-        next();
-      },
-      afterAppend: function(loadedContent, existingContent, next) {
-        existingContent.style.display = 'none';
-        loadedContent.style.display   = 'block';
-        next();
-      },
-      done: function(url) {
-        // woohoo!!
+      params.push(nextFn.bind(callback) || utilities.noop);
+
+      fn.apply(null, params);
+    }
+  };
+
+  dom = {
+    find: function(scope, selector, all) {
+      all = (typeof all === 'boolean') ? all : false;
+
+      if(all) {
+        return (scope || document).querySelectorAll(selector);
+      } else {
+        return (scope || document).querySelector(selector);
       }
     },
-
-    watchInboundLinks = function($links) {
-      var $filteredLinks = [];
-
-      for(var i = 0; i < $links.length; i++) {
-        if($links[i].href && utilities.isInternalLink($links[i].href)) {
-          // Attach the `dispatchLinkEvent` method to the link
-          $links[i].addEventListener('click', fetchNewPage);
-
-          // Add the link to the filtered list
-          $filteredLinks.push($links[i]);
+    bind: function($target, type, callback, useCapture) {
+      if($target.constructor.name === 'NodeList') {
+        for(var i = 0; i < $target.length; i++) {
+          dom.bind($target[i], type, callback, useCapture);
         }
+      } else if($target instanceof HTMLElement) {
+        $target.addEventListener(type, callback, !!useCapture);
+      }
+    },
+    parent: function($element, tagName) {
+      if(!$element.parentNode) { return; }
+      if($element.parentNode.tagName.toLowerCase() === tagName.toLowerCase()) {
+        return $element.parentNode;
       }
 
-      return $filteredLinks;
+      return dom.parent($element.parentNode, tagName);
     },
+    insertBefore: function($targetElement, $elementToInsert) {
+      var $targetParent = $targetElement.parentNode;
 
-    fetchNewPage = function(event) {
-      var $element;
-      var linkAddress;
+      if(!$targetParent) { return; }
 
-      event.preventDefault();
-
-      $element = event.target;
-      if($element.nodeName !== 'A') {
-        $
-      }
-      linkAddress = $element.href;
-
-      var sendRequest = function() {
-        utilities.ajaxRequest(linkAddress, function() {
-          var response = this;
-
-          if(response.readyState === 4) {
-            if(response.status >= 200 && response.status < 400) {
-              if(cachePageContent(linkAddress, response.responseText)) {
-                options.afterLoad.call($element, linkAddress, response.responseText, swapPageContent); // Middleware
-              }
-            }
-          }
-        });
-      };
-
-      options.beforeLoad.call($element, linkAddress, sendRequest); // Middleware
+      $targetParent.insertBefore($targetElement, $elementToInsert);
     },
+  };
 
-    cachePageContent = function(url, content) {
-      var $content       = (document).createElement('div');
-      $content.innerHTML = content;
-
-      cache.title = $content.querySelector('title').text;
-      cache.html  = $content.querySelector(options.contextId);
-      cache.url   = url;
-
-      if(typeof cache.title === 'null' || cache.html === 'null' || cache.url === 'null') {
-        clearCache();
-        return false;
-      }
-
-      return true;
+  defaults = {
+    anchors   : 'a',
+    contextId : 'transit-context',
+    beforeLoad: function(url, next) {
+      next();
     },
-
-    swapPageContent = function() {
-      var $tempContextCont = (document).createElement('div');
-      var $currentContext  = (document).querySelector(options.contextId);
-
-      var appendNewContent = function() {
-        $currentContext.parentNode.insertBefore($tempContextCont, $currentContext.nextSibling);
-        options.afterAppend.call({}, $tempContextCont, $currentContext, updateDocumentAttributes);
-      };
-
-      var updateDocumentAttributes = function() {
-        document.title = cache.title;
-        window.history.pushState(null, null, cache.url);
-
-        cleanupTempHtml();
-      };
-
-      var cleanupTempHtml = function() {
-        var $newContext = $tempContextCont.querySelector(options.contextId);
-
-        $newContext.parentNode.parentNode.insertBefore($newContext, $tempContextCont);
-
-        $currentContext.parentNode.removeChild($currentContext);
-        $tempContextCont.parentNode.removeChild($tempContextCont);
-
-        resetTransit($newContext);
-      };
-
-      var resetTransit = function($newContext) {
-        var url = cache.url;
-
-        watchInboundLinks($newContext.querySelectorAll('a'));
-        clearCache();
-
-        options.done.call({}, url, $newContext);
-      };
-
-      $tempContextCont.id = 'temp--transit-context';
-      $tempContextCont.appendChild(cache.html);
-
-      options.afterAppend.call({}, $tempContextCont, $currentContext, appendNewContent); // Middleware
+    duringLoad: function(event) {
+      // loading...
     },
+    afterLoad: function(url, content, next) {
+      next();
+    },
+    beforeAppend: function($newContent, $oldContent, next) {
+      console.log('do something before append...');
+      next();
+    },
+    afterAppend: function($newContent, next) {
+      console.log($newContent);
+      next();
+    },
+    done: function(url) {
+      // woohoo!!
+    }
+  };
 
-    clearCache = function() {
-      for(i in cache) {
-        if(cache.hasOwnProperty(i)) { cache[i] = null; }
-      }
+  var loadNewContent = function(event) {
+    var $link    = this;
+    var linkHref = $link.href;
+
+    event.preventDefault();
+
+    if(utilities.isInternalLink($link.href)) {
+      utilities.getRequest(linkHref, function(request) {
+        var $newContent = extractContextFromContent(request.responseText);
+
+        placeNewContent($newContent);
+      });
+    }
+  };
+
+  var extractContextFromContent = function(htmlString) {
+    var $tempHTMLContainer;
+    var $context;
+
+    $tempHTMLContainer           = document.createElement('div');
+    $tempHTMLContainer.innerHTML = htmlString;
+
+    $context    = dom.find($tempHTMLContainer, '#' + options.contextId);
+    $context.id = $context.id + '--temp';
+
+    delete $tempHTMLContainer;
+
+    return $context;
+  };
+
+  var placeNewContent = function($newContent) {
+    var $context = dom.find(document, '#' + options.contextId);
+    var appendNewContent;
+    var updatePage;
+
+    appendNewContent = function() {
+      $context.innerHTML = $newContent.innerHTML;
+
+      delete $newContent;
+
+      utilities.middleware(options.afterAppend, [$context], updatePage);
     };
 
+    updatePage = function() {
+      console.log('wühüü c:');
+    };
+
+    utilities.middleware(options.beforeAppend, [$newContent, $context], appendNewContent);
+  };
+
+
   function Transit(opts) {
-    var $links = watchInboundLinks((document).querySelectorAll('a'));
+    var $links;
 
-    opts = opts || {};
-
+    opts    = opts || {};
     options = utilities.objectExtend(defaults, opts);
+    $links  = dom.find(document, 'a', true);
+
+    dom.bind($links, 'click', loadNewContent);
   }
 
   // Expose to window object
