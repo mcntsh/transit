@@ -122,7 +122,6 @@
   };
 
   defaults = {
-    anchors   : 'a',
     contextId : 'transit-context',
     beforeLoad: function(url, next) {
       next();
