@@ -116,7 +116,6 @@
       document.title = title
     },
     push: function(title, path) {
-      console.log(title, path);
       history.pushState({ title : title }, title, path);
       hist.handlePushState(title);
     },
@@ -153,14 +152,19 @@
       event.preventDefault();
     }
 
-    if(utilities.isInternalLink($link.href)) {
+    var makeRequest = function() {
       utilities.getRequest(linkHref, function(request) {
         var $newContent = extractContextFromContent(request.responseText);
+        var callback    = placeNewContent.bind(null, $newContent);
 
-        cache.url = link || $link.href;
+        cache.url = linkHref;
 
-        placeNewContent($newContent);
+        utilities.middleware(options.afterLoad, [linkHref, $newContent], callback);
       });
+    };
+
+    if(utilities.isInternalLink(linkHref)) {
+      utilities.middleware(options.beforeLoad, [linkHref], makeRequest);
     }
   };
 
