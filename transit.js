@@ -144,7 +144,7 @@
 
   loadNewContent = function(event, link, pushState) {
     var $link    = this;
-    var linkHref = link || $link.href;
+    var linkHref = link || $link.getAttribute('href', 2);
 
     if(event) {
       event.preventDefault();
@@ -205,7 +205,7 @@
 
       dom.bind($links, 'click', loadNewContent);
 
-      utilities.middleware(options.done);
+      utilities.middleware(options.done, cache.url);
     };
 
     utilities.middleware(options.beforeAppend, [$newContent, $context], appendNewContent);
