@@ -7,6 +7,8 @@
   var dom;
   var hist;
 
+  var history = window.history;
+
   var loadNewContent;
   var extractContextFromContent;
   var placeNewContent;
@@ -58,7 +60,7 @@
       request.send();
     },
     middleware: function(fn, params, callback) {
-      params = params || [];
+      params = (params instanceof Array) ? params : [params];
 
       var nextFn = function() { this() };
 
@@ -110,13 +112,14 @@
 
       document.title = event.state.title;
 
-      loadNewContent(null, document.location.href);
+      loadNewContent(null, document.location.href, false);
     },
     handlePushState: function(title) {
       document.title = title
     },
     push: function(title, path) {
       history.pushState({ title : title }, title, path);
+
       hist.handlePushState(title);
     },
   };
@@ -126,9 +129,7 @@
     beforeLoad: function(url, next) {
       next();
     },
-    duringLoad: function(event) {
-      // loading...
-    },
+    duringLoad: utilities.noop,
     afterLoad: function(url, content, next) {
       next();
     },
@@ -138,12 +139,10 @@
     afterAppend: function($newContent, next) {
       next();
     },
-    done: function(url) {
-      // wuhuu!
-    }
+    done: utilities.noop
   };
 
-  loadNewContent = function(event, link) {
+  loadNewContent = function(event, link, pushState) {
     var $link    = this;
     var linkHref = link || $link.href;
 
@@ -158,12 +157,16 @@
 
         cache.url = linkHref;
 
+        if(pushState !== false) {
+          hist.push(cache.title, cache.url);
+        }
+
         utilities.middleware(options.afterLoad, [linkHref, $newContent], callback);
       });
     };
 
     if(utilities.isInternalLink(linkHref)) {
-      utilities.middleware(options.beforeLoad, [linkHref], makeRequest);
+      utilities.middleware(options.beforeLoad, linkHref, makeRequest);
     }
   };
 
@@ -199,8 +202,6 @@
 
     updatePage = function() {
       var $links  = dom.find(document, 'a', true);
-
-      hist.push(cache.title, cache.url);
 
       dom.bind($links, 'click', loadNewContent);
 
