@@ -162,7 +162,7 @@
         }
 
         utilities.middleware(options.afterLoad, [linkHref, $newContent], callback);
-      });
+      }, utilities.noop, options.duringLoad);
     };
 
     if(utilities.isInternalLink(linkHref)) {
