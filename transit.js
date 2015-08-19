@@ -154,6 +154,8 @@
     }
 
     if(event) {
+      if(event.metaKey === true) return;
+
       event.preventDefault();
     }
 
