@@ -55,9 +55,10 @@
       request.onload  = function() {
         if(request.status  >= 200 && request.status < 400) {
           (successCB || utilities.noop).call(this, request);
+        } else {
+          (errorCB || utilities.noop).call(this, request);
         }
       };
-      request.onerror = (errorCB || utilities.noop).bind(null, request);
 
       request.send();
     },
@@ -168,12 +169,12 @@
         }
 
         utilities.middleware(options.afterLoad, [linkHref, $newContent], callback);
-      }, utilities.noop, options.duringLoad);
+      }, function() {
+        document.location.href = linkHref;
+      }, options.duringLoad);
     };
 
-    if(utilities.isInternalLink(linkHref)) {
-      utilities.middleware(options.beforeLoad, linkHref, makeRequest);
-    }
+    utilities.middleware(options.beforeLoad, linkHref, makeRequest);
   };
 
   extractContextFromContent = function(htmlString) {
