@@ -25,6 +25,8 @@
       var externalPattern = new RegExp('^(?:[a-z]+:)?//', 'i');
       var internalPattern = new RegExp('//' + location.host + '($|/)', 'i');
 
+      if(!url) return false;
+
       return !(externalPattern.test(url) && !internalPattern.test(url));
     },
     isHash: function(url) {
@@ -145,6 +147,10 @@
   loadNewContent = function(event, link, pushState) {
     var $link    = this;
     var linkHref = link || $link.getAttribute('href', 2);
+
+    if(!utilities.isInternalLink(linkHref)) {
+      return;
+    }
 
     if(event) {
       event.preventDefault();
