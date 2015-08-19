@@ -92,6 +92,15 @@
         $target.addEventListener(type, callback, !!useCapture);
       }
     },
+    unbind: function($target, type, callback, useCapture) {
+      if($target.constructor.name === 'NodeList') {
+        for(var i = 0; i < $target.length; i++) {
+          dom.unbind($target[i], type, callback, useCapture);
+        }
+      } else if($target instanceof HTMLElement) {
+        $target.removeEventListener(type, callback, !!useCapture);
+      }
+    },
     parent: function($element, tagName) {
       if(!$element.parentNode) { return; }
       if($element.parentNode.tagName.toLowerCase() === tagName.toLowerCase()) {
@@ -128,7 +137,7 @@
   };
 
   defaults = {
-    contextId : 'transit-context',
+    context : document.getElementsByTagName('body')[0],
     beforeLoad: function(url, next) {
       next();
     },
@@ -147,7 +156,7 @@
 
   loadNewContent = function(event, link, pushState) {
     var $link    = this;
-    var linkHref = link || $link.getAttribute('href', 2);
+    var linkHref = link || $link.href;
 
     if(!utilities.isInternalLink(linkHref)) {
       return;
@@ -186,7 +195,7 @@
     $tempHTMLContainer           = document.createElement('div');
     $tempHTMLContainer.innerHTML = htmlString;
 
-    $context    = dom.find($tempHTMLContainer, '#' + options.contextId);
+    $context    = dom.find($tempHTMLContainer, '#' + options.context.id);
     $context.id = $context.id + '--temp';
 
     cache.title = dom.find($tempHTMLContainer, 'title').innerText;
@@ -197,16 +206,15 @@
   };
 
   placeNewContent = function($newContent) {
-    var $context = dom.find(document, '#' + options.contextId);
     var appendNewContent;
     var updatePage;
 
     appendNewContent = function() {
-      $context.innerHTML = $newContent.innerHTML;
+      options.context.innerHTML = $newContent.innerHTML;
 
       delete $newContent;
 
-      utilities.middleware(options.afterAppend, [$context], updatePage);
+      utilities.middleware(options.afterAppend, [options.context], updatePage);
     };
 
     updatePage = function() {
@@ -214,10 +222,10 @@
 
       dom.bind($links, 'click', loadNewContent);
 
-      utilities.middleware(options.done, cache.url);
+      utilities.middleware(options.done);
     };
 
-    utilities.middleware(options.beforeAppend, [$newContent, $context], appendNewContent);
+    utilities.middleware(options.beforeAppend, [$newContent, options.context], appendNewContent);
   };
 
   initPushState = function() {
@@ -241,6 +249,16 @@
     $links  = dom.find(document, 'a', true);
 
     dom.bind($links, 'click', loadNewContent);
+
+    return {
+      bind: function($links) {
+        dom.bind($links, 'click', loadNewContent);
+      },
+      destroy: function() {
+        dom.unbind($links, 'click', loadNewContent);
+      }
+    };
+
   }
 
   // Expose to window object
